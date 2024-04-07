@@ -1,0 +1,72 @@
+#include <stm32f401xe.h>
+#include <pin.h>
+#include <Usart.h>//Por si no quiero usar la Oled
+#include <I2c.h>
+#include <I2cSoft.h>// Para usar la simulación por software y no por el modulo porque se petatea
+#include <delay.h>
+#include <stdio.h>// Para usar el SprintF
+#include <Ssd1306.h>//Libreria Oled
+#include <Teclado.h>
+#include <Port.h>	
+#include <stdlib.h>
+char Texto[50]; //El texro donde se guarda el Sprint
+I2cSoft I;// Creo el objeto I2C 
+SSD1306 G;// Creo el objeto de la Oled
+Port F,C;
+char Text[50];
+int AD_C= 0;
+ char texto [200];
+
+double Conv(int d){
+	return (double)3.3*d/4095.0;
+}
+
+
+int main(void)
+{
+	// Configuración del ADC1 
+ RCC->APB2ENR|=RCC_APB2ENR_ADC1EN;// Se activa el módulo ADC1
+ ADC->CCR=(3UL<<16);// Se hace ADCCLK=PCLK2/8
+ ADC1->CR1=0;
+ ADC1->CR2|=ADC_CR2_ADON;// Se activa modulo ADC1
+ ADC1->SMPR1=0xFFFFFFFF;// Se fija máximo tiempo de muestreo
+ ADC1->SMPR2=0xFFFFFFFF;// Se fija máximo tiempo de muestreo
+ ADC1->SQR1=0;// Se fijan todas las secuencias en 0
+ ADC1->SQR2=0;// Se fijan todas las secuencias en 0
+ ADC1->SQR3=1;// Se fijan todas las secuencias en 1
+	 // Configuración pin PA0 análogo
+ RCC->AHB1ENR|=RCC_AHB1ENR_GPIOAEN;// Activa reloj GPIOA
+ GPIOA->MODER|=15UL;// Activa PA0 y A1 análogo
+	
+
+
+//	IniciarDelay(); 
+	// Siguientes dos lineas, seteo del sensor
+I.Iniciar(PB9,PB8,400000); // Doy la ruta del I2C y la velocidad **(1)
+	G.SetI2c(&I);// Le indico que la ruta de I2C que estoy usando es la de la linea ->(1)
+	G.IniciarGLCD();// Inicio la Oled
+//	Delay_ms(100);
+
+while(1)
+{
+	// Lectura de canal ADC 0
+	ADC1->SQR3=0;
+  ADC1->CR2|=ADC_CR2_SWSTART;// Se inicia la rutina de conversión
+  while(!(ADC1->SR&ADC_SR_EOC));// Se espera al fin de la conversión
+  AD_C =(unsigned int)ADC1->DR;// Se guarda el valor convertido en la variable
+
+	//Ahora se lee lo que manda el sensor, para leer debes escribir primero la dirección de donde se va a realizar la lectura
+	sprintf(Texto,"Lectura temp = %0.1f",Conv(AD_C)*100); 
+	G.SetColor(0);// 0 es color negro
+	G.RectanguloRelleno(0,0,127,32); // Se coloca lit un rectangulo negro para borrar el texto anterior, se coloca la posicion de inicio y hasta donde va 
+	G.SetColor(1);// cambiamos a color blanco
+
+sprintf(Texto,"Lectura temp = %0.1f",Conv(AD_C)*100 	);
+	G.PrintTexto(0,0,Texto);//Ubicación de donde sale el texto y la cadena
+	
+	G.Refrescar();//SIEMPRE SE DEBE PONER, SIEMPRE
+  
+
+}
+return 0;	
+}
